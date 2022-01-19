@@ -53,32 +53,43 @@ def FedAvg(w):
     return w_avg
 
 
-# import copy
-#
-# origin = [1, 2, [3, 4]]
-# cop1 = copy.copy(origin)
-# cop2 = copy.deepcopy(origin)
-# cop3=origin
-#
-# print(origin)
-# print(cop1)
-# print(cop2)
-# print(cop3)
-#
-# origin[2][0] = "hey!"  #改变
-# print("##################")
-#
-# print(origin)
-# print(cop1)
-# print(cop2)   # 深度拷贝不变
-# print(cop3)
-#
-# [1, 2, [3, 4]]
-# [1, 2, [3, 4]]
-# [1, 2, [3, 4]]
-# [1, 2, [3, 4]]
-# ##################
-# [1, 2, ['hey!', 4]]
-# [1, 2, ['hey!', 4]]
-# [1, 2, [3, 4]]
-# [1, 2, ['hey!', 4]]
+
+
+'''
+
+# 对梯度进行聚合更新
+
+def fun1(x):
+    return 1/x*np.exp(-x)
+
+h_threshold = 0.1
+integration = integrate.quad(fun1,h_threshold,np.inf)
+# print(integration[0])
+
+def FedAvg(gradient):
+
+    grad_avg = copy.deepcopy(gradient[0])   # 此处应拷贝梯度
+
+    P0 = 1
+    scale = (P0 / integration[0])**0.5
+    # scale = 1.0
+    for k in grad_avg.keys():
+        for i in range(1,len(gradient)):
+            h = abs(float(np.random.randn(1,1)))
+            # print(h)
+            if h >= h_threshold:
+
+                grad_avg[k] += gradient[i][k]*scale
+
+            else:
+                gradient[i][k]=0
+                grad_avg[k] += gradient[i][k]
+
+
+
+        grad_avg[k] = torch.div(grad_avg[k], len(gradient)*scale)
+
+
+
+    return grad_avg
+'''
