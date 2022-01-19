@@ -86,6 +86,11 @@ if __name__ == '__main__':
     w_glob = net_glob.state_dict()
 
 
+    '''
+    定义 所有worker聚合（fedavg()）得到的PS使用的梯度 grad_glob ，PS利用 grad_glob 进行GD
+    Q：怎样对grad_glob初始化？
+    '''
+    grad_glob = dict()   # 怎样对其初始化？？？
 
 
     # training_initialize
@@ -99,15 +104,15 @@ if __name__ == '__main__':
     if args.all_clients:   # 选择利用所有用户进行聚合
         print("Aggregation over all clients")
         w_locals = [w_glob for i in range(args.num_users)]  # 每一个local的w与全局w相等
-        # gradient_locals = [gradient_glob for i in range(args.num_users)]
+        gradient_locals = [grad_glob for i in range(args.num_users)]
 
     for iter in range(args.epochs):
         loss_locals = []  # 对于每一个epoch，初始化worker的损失
 
-        if not args.all_clients:  # 如果不是用所有用户进行聚合
-            w_locals = []  # 此时worker的w与全局w并不一致
-
-            gradient_locals = []  # 本地更新的模型的gradient
+        # if not args.all_clients:  # 如果不是用所有用户进行聚合
+        #     w_locals = []  # 此时worker的w与全局w并不一致
+        #
+        #     gradient_locals = []  # 本地更新的模型的gradient
 
 
         m = max(int(args.frac * args.num_users), 1)  # 此时，在每一轮中，在所有worker中选取C-fraction（C∈（0,1））部分进行训练，m为选取的worker总数
@@ -115,42 +120,51 @@ if __name__ == '__main__':
 
         for idx in idxs_users:  # 对于选取的m个worker
 
-            local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])  # 对每个worker进行本地训练更新
-
             #----------
+            local = LocalUpdate(args=args, dataset=dataset_train, idxs=dict_users[idx])  # 导入该worker的训练模型，对该worker进行本地训练更新
+            # 此处是在PS处进行模型训练，得到全局的权值、梯度、损失
             w, loss, gradient = local.train(net=copy.deepcopy(net_glob).to(args.device))  # gradient 是保存梯度的字典
             #----------
 
-            if args.all_clients:  # 如果选择全部用户
-                w_locals[idx] = copy.deepcopy(w)
+            if args.all_clients:  # 如果选择全部用户进行聚合，则将本地更新的权值 赋给 该用户
 
-                gradient_locals[idx] = copy.deepcopy(gradient)
+                w_locals[idx] = copy.deepcopy(w)  # 对于每个worker，用其本地训练的权值进行更新
+
+                gradient_locals[idx] = copy.deepcopy(gradient)  # 对于每个worker，用其本地训练的梯度进行更新
 
 
-            else:  # 并行
-                w_locals.append(copy.deepcopy(w))
+            # else:  # 并行
+            #     w_locals.append(copy.deepcopy(w))
+            #     gradient_locals.append(copy.deepcopy(gradient))
 
-                gradient_locals.append(copy.deepcopy(gradient))
 
             loss_locals.append(copy.deepcopy(loss))
 
-        # update global weights
+        # update and store global weights && gradients
 
-        print(np.size(w_locals),np.size(gradient_locals))
-        print(np.shape(w_locals),np.shape(gradient_locals))
+        # print(np.size(w_locals),np.size(gradient_locals))
+        # print(np.shape(w_locals),np.shape(gradient_locals))
         # print(w_locals)
         # print(gradient_locals)
 
+        # print(w_locals[0])
+        print(gradient_locals[0])
+
+        '''
+        利用FedAvg()函数对梯度进行聚合更新，并将结果赋给PS，PS利用聚合得到的梯度进行GD来更新权值
+        Q:咋用grad_glob进行GD
+        '''
+
+        '''
+        伪代码，PS利用聚合得到的梯度进行GD
+        # grad_glob = FedAvg(gradient_locals)
+        # net_glob.GD(grad_glob)  
+        '''
+
         w_glob = FedAvg(w_locals)  # 利用选取的局部w对全局w进行聚合更新，w_glob即为全局聚合更新后的值
-        # w_glob = FedAvg(w_locals)
+        net_glob.load_state_dict(w_glob)  # copy weight to net_glob
 
 
-        # copy weight to net_glob
-        net_glob.load_state_dict(w_glob)
-
-        #------------------------------------
-        print(net_glob.load_state_dict(w_glob))
-        #------------------------------------
 
 
         # print loss
