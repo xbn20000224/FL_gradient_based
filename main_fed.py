@@ -75,7 +75,7 @@ if __name__ == '__main__':
 
 
 
-    print(net_glob)
+    print(net_glob) #PS使用的全局模型
 
     net_glob.train()    # 训练一次
 
@@ -90,7 +90,16 @@ if __name__ == '__main__':
     定义 所有worker聚合（fedavg()）得到的PS使用的梯度 grad_glob ，PS利用 grad_glob 进行GD
     Q：怎样对grad_glob初始化？
     '''
-    grad_glob = dict()   # 怎样对其初始化？？？
+    grad_glob = [{'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0},
+                 {'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0},
+                 {'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0},
+                 {'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0},
+                 {'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0},
+                 {'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0},
+                 {'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0},
+                 {'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0},
+                 {'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0},
+                 {'layer_0':0, 'layer_1':0, 'layer_2':0, 'layer_3':0, 'layer_4':0, 'layer_5':0, 'layer_6':0, 'layer_7':0}]   # 怎样对其初始化？？？
 
 
     # training_initialize
@@ -142,13 +151,10 @@ if __name__ == '__main__':
 
         # update and store global weights && gradients
 
-        # print(np.size(w_locals),np.size(gradient_locals))
-        # print(np.shape(w_locals),np.shape(gradient_locals))
-        # print(w_locals)
-        # print(gradient_locals)
 
-        # print(w_locals[0])
-        print(gradient_locals[0])
+
+
+        # print(gradient_locals[0]['layer_1'])
 
         '''
         利用FedAvg()函数对梯度进行聚合更新，并将结果赋给PS，PS利用聚合得到的梯度进行GD来更新权值
@@ -161,8 +167,94 @@ if __name__ == '__main__':
         # net_glob.GD(grad_glob)  
         '''
 
+        # print(gradient_locals)
+
+
+        '''
+        # INITIAL VERSION
         w_glob = FedAvg(w_locals)  # 利用选取的局部w对全局w进行聚合更新，w_glob即为全局聚合更新后的值
+        print(w_glob)
         net_glob.load_state_dict(w_glob)  # copy weight to net_glob
+        '''
+        # print(np.size(w_locals),np.size(gradient_locals))
+        # print(np.shape(w_locals),np.shape(gradient_locals))
+        # print(w_locals)
+        # print(gradient_locals)
+        # print(np.shape(gradient_locals))
+
+        '''
+        尝试GD——start
+        '''
+
+        grad_glob = FedAvg(gradient_locals)
+
+        # print(grad_glob)
+        # print(np.size(w_locals),np.shape(w_locals),w_locals)
+        for ele in w_locals:
+            ele = list(ele)
+            for ele1 in ele:
+                print(type(ele1),ele1)
+
+
+        '''
+        定位在 Fed对于 gradient_locals操作后出错--更改Fed.py中的算法写法，修改后元素索引出错，无论正序倒序只能提取文字list，无法提取tensor数据
+        '''
+
+        # lr = 0.01
+        # count_outercycle = 0
+        # count_innercycle = 0
+        # for ele in w_locals:
+        #     ele = list(ele)
+        #     for ele1 in ele:
+        #         ele1 = list(ele1)
+        #         # print(ele1)
+        #         # print(grad_glob[count_outercycle][f"layer_{count_innercycle}"])
+        #         ele1[1] += grad_glob[count_outercycle][f"layer_{count_innercycle}"] * lr
+        #
+        #         count_innercycle += 1
+        #
+        #     count_outercycle += 1
+        #     count_innercycle = 0
+        #
+        # w_glob = w_locals
+        # net_glob.load_state_dict(w_glob)
+
+        lr = 0.1
+        count_outercycle = 0
+        count_innercycle = 0
+        for ele in w_locals:
+            ele = list(ele)
+            print(ele)
+            for ele1 in ele :
+                ele1 = list(ele1)
+                print(ele1)
+                # print(grad_glob[count_outercycle][f"layer_{count_innercycle}"])
+                ele1[-1] += grad_glob[0][f"layer_{count_innercycle}"]
+
+                count_innercycle += 1
+
+            count_outercycle += 1
+            count_innercycle = 0
+
+        w_locals_update=[]
+        for ele2 in w_locals:
+            n=tuple(ele2)
+            w_locals_update.append((n))
+            # print(l1)
+            # print(l)
+
+        w_glob = w_locals_update
+        print(w_glob)
+        net_glob.load_state_dict(w_glob)
+
+        '''
+        尝试GD--end
+        '''
+
+
+
+
+
 
 
 
